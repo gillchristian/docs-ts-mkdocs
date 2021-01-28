@@ -37,7 +37,7 @@ const main2 = pipe(
     fs.rmSync(path.resolve("docs", "_config.yml"));
 
     fs.writeFileSync(
-      path.resolve("docs", "config.yml"),
+      path.resolve("docs", "mkdocs.yml"),
       yaml.dump(config),
       "utf8"
     );
