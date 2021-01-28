@@ -10,6 +10,7 @@
   "license": "MIT",
   "private": false,
   "scripts": {
+    "run:dev": "ts-node src/bin.ts",
     "build": "tsc",
     "watch": "tsc --watch --noEmit",
     "fmt": "prettier --write '**/*.{ts,md,json}'"

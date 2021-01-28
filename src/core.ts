@@ -141,7 +141,7 @@ const writeFile = (file: File): AppEff<void> => ({C}) => {
 //     RTE.map(() => undefined)
 //   )
 
-const mkDocsPath = path.resolve('docs', 'mkdocs.yml')
+const mkDocsPath = path.resolve('mkdocs.yml')
 const docsTsConfigPath = path.resolve('docs', '_config.yml')
 
 const readConfig: AppEff<File> = readFile(mkDocsPath, true)
