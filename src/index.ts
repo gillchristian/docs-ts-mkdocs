@@ -1,7 +1,7 @@
 /**
  * @since 0.0.1
  */
-import { main } from "docs-ts-extra";
+import { main as docsTsMain} from "docs-ts-extra";
 import * as T from "fp-ts/Task";
 import * as chalk from "chalk";
 import * as yaml from "js-yaml";
@@ -23,8 +23,11 @@ const mkConfig = (modules: string[]) => ({
   },
 });
 
-const main2 = pipe(
-  main,
+/**
+ * @since 0.0.1
+ */
+export const main = pipe(
+  docsTsMain,
   T.chain(() => {
     const modules = glob
       .sync("./docs/modules/**/*.md")
@@ -48,4 +51,3 @@ const main2 = pipe(
   })
 );
 
-main2().catch((e) => console.log(chalk.bold.red(`Unexpected error: ${e}`)));
