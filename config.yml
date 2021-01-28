@@ -1,0 +1,13 @@
+site_name: projects/cw-cli
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: white
+  features:
+    - navigation.tabs
+nav:
+  - Overview: index.md
+  - Modules:
+    - config.ts: modules/config.ts.md
+    - markdown.ts: modules/markdown.ts.md
