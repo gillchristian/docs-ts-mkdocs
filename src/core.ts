@@ -2,11 +2,11 @@
  * @since 0.0.1
  */
 import * as path from 'path'
-// import * as A from 'fp-ts/Array'
+import * as A from 'fp-ts/Array'
 import * as RTE from 'fp-ts/ReaderTaskEither'
 import * as TE from 'fp-ts/TaskEither'
 import {sequenceS} from 'fp-ts/Apply'
-import {pipe} from 'fp-ts/lib/function'
+import {pipe, not} from 'fp-ts/lib/function'
 
 /**
  * capabilities
@@ -54,6 +54,16 @@ export interface Context {
  */
 export interface AppEff<A> extends RTE.ReaderTaskEither<Context, string, A> {}
 
+const modulesToC = (modules: string[]): string => {
+  return [
+    '<h2 class="text-delta">Table of contents</h2>',
+    '',
+    ...modules.map((m) => `- [${path.basename(m)}](/${m.replace(/\.md$/, '')})`)
+  ]
+    .join('\n')
+    .trim()
+}
+
 const handleConfig = (contents: string, modules: string[]): string => {
   const lines = contents.split('\n')
 
@@ -90,7 +100,17 @@ const handleConfig = (contents: string, modules: string[]): string => {
     {before: [], after: [], state: 'before'}
   )
 
-  return [before, ['nav:'].concat(modules.map((m) => `  - ${m}`)), [''], after]
+  return [
+    before,
+    [
+      'nav:',
+      '  - Overview: index.md',
+      '  - Modules:',
+      ...modules.map((m) => `    - '${path.basename(m).replace(/\.md$/, '')}': ${m}`)
+    ],
+    [''],
+    after
+  ]
     .map((ls) => ls.join('\n'))
     .join('\n')
     .trim()
@@ -135,11 +155,11 @@ const writeFile = (file: File): AppEff<void> => ({C}) => {
   )
 }
 
-// const writeFiles = (files: File[]): AppEff<void> =>
-//   pipe(
-//     A.array.traverse(RTE.readerTaskEither)(files, writeFile),
-//     RTE.map(() => undefined)
-//   )
+const writeFiles = (files: File[]): AppEff<void> =>
+  pipe(
+    A.array.traverse(RTE.readerTaskEither)(files, writeFile),
+    RTE.map(() => undefined)
+  )
 
 const mkDocsPath = path.resolve('mkdocs.yml')
 const docsTsConfigPath = path.resolve('docs', '_config.yml')
@@ -150,8 +170,23 @@ const removeDocsTsConfig: AppEff<void> = ({C}) => C.rmFile(docsTsConfigPath)
 
 const readModules: AppEff<string[]> = ({C}: Context) =>
   pipe(
-    C.getFilenames('./docs/modules/**/*.md'),
+    C.getFilenames('./docs/modules/*.md'),
     TE.map((files) => files.map((mdPath) => path.relative(path.resolve('docs'), path.resolve(mdPath))))
+  )
+
+const isIndexMd = (path: string) => path.endsWith('index.md')
+
+const modulesIndex = (toc: string): File =>
+  file(
+    path.join('docs', 'modules', 'index.md'),
+    `---
+title: Modules
+has_children: true
+---
+
+${toc}
+`,
+    true
   )
 
 /**
@@ -161,9 +196,13 @@ const readModules: AppEff<string[]> = ({C}: Context) =>
  */
 export const main: AppEff<void> = pipe(
   removeDocsTsConfig,
-  // { module: AppEff<string[]>, mkdocsConfig: AppEff<File> } => AppEff<{ module: string[], mkdocsConfig: File }>
   RTE.chain(() => sequenceS(RTE.readerTaskEither)({modules: readModules, mkdocsConfig: readConfig})),
-  RTE.chain(({modules, mkdocsConfig}) =>
-    writeFile(file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, modules), true))
-  )
+  RTE.chain(({modules, mkdocsConfig}) => {
+    const rest = pipe(modules, A.filter(not(isIndexMd)))
+
+    return writeFiles([
+      file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, rest), true),
+      modulesIndex(modulesToC(modules))
+    ])
+  })
 )
