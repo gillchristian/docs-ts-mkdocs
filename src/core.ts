@@ -54,11 +54,17 @@ export interface Context {
  */
 export interface AppEff<A> extends RTE.ReaderTaskEither<Context, string, A> {}
 
+const dropFirstDir = (p: string): string => {
+  const [dir, ...rest] = p.split(path.sep).filter(Boolean)
+
+  return A.isEmpty(rest) ? dir : rest.join(path.sep)
+}
+
 const modulesToC = (modules: string[]): string => {
   return [
     '<h2 class="text-delta">Table of contents</h2>',
     '',
-    ...modules.map((m) => `- [${path.basename(m)}](/${m.replace(/\.md$/, '')})`)
+    ...modules.map((m) => `- [${dropFirstDir(m)}](/${m.replace(/\.md$/, '')})`)
   ]
     .join('\n')
     .trim()
@@ -106,7 +112,7 @@ const handleConfig = (contents: string, modules: string[]): string => {
       'nav:',
       '  - Overview: index.md',
       '  - Modules:',
-      ...modules.map((m) => `    - '${path.basename(m).replace(/\.md$/, '')}': ${m}`)
+      ...modules.map((m) => `    - '${dropFirstDir(m).replace(/\.md$/, '')}': ${m}`)
     ],
     [''],
     after
@@ -170,7 +176,7 @@ const removeDocsTsConfig: AppEff<void> = ({C}) => C.rmFile(docsTsConfigPath)
 
 const readModules: AppEff<string[]> = ({C}: Context) =>
   pipe(
-    C.getFilenames('./docs/modules/*.md'),
+    C.getFilenames('./docs/modules/**/*.md'),
     TE.map((files) => files.map((mdPath) => path.relative(path.resolve('docs'), path.resolve(mdPath))))
   )
 
