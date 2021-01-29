@@ -1,16 +1,18 @@
 /**
  * @since 0.0.1
  */
-import * as glob from 'glob'
 import * as fs from 'fs'
+
+import * as glob from 'glob'
 import * as chalk from 'chalk'
+import {main as docsTsMain} from 'docs-ts-extra'
+
 import * as IO from 'fp-ts/IO'
 import * as IOEither from 'fp-ts/IOEither'
 import * as T from 'fp-ts/Task'
 import * as TE from 'fp-ts/TaskEither'
 import {pipe} from 'fp-ts/lib/function'
 import {log} from 'fp-ts/lib/Console'
-import {main as docsTsMain} from 'docs-ts-extra'
 
 import * as core from './core'
 

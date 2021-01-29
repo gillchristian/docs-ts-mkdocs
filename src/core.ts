@@ -226,8 +226,6 @@ const readDirectory = (initialDir: string): AppEff<DirectoryTree> =>
     )
   )
 
-// const readFiles = (paths: string[]): AppEff<File[]> => A.array.traverse(RTE.readerTaskEither)(paths, readFile)
-
 const writeFile = (file: File): AppEff<void> => ({C}) => {
   const overwrite = pipe(
     C.debug(`Overwriting file ${file.path}`),
@@ -272,12 +270,7 @@ const mdFileTitle = (file: string): AppEff<string> =>
 
 const mdFilesTitles = (files: string[]): AppEff<string[]> => A.array.traverse(RTE.readerTaskEither)(files, mdFileTitle)
 
-const mkDocsPath = path.resolve('mkdocs.yml')
-const docsTsConfigPath = path.resolve('docs', '_config.yml')
-
-const readConfig: AppEff<File> = readFile(mkDocsPath, true)
-
-const removeDocsTsConfig: AppEff<void> = ({C}) => C.rmFile(docsTsConfigPath)
+const readConfig: AppEff<File> = readFile('mkdocs.yml', true)
 
 const readAllMdFiles = (dir: string): AppEff<string[]> => ({C}: Context) =>
   C.getFilenames(path.join('docs', ...relativeToDocs(dir).split(path.sep), '**', '*.md'))
@@ -338,7 +331,7 @@ const dirsRefs = (dirs: string[]): AppEff<DirRef[]> =>
   pipe(A.array.traverse(RTE.readerTaskEither)(dirs, dirRef), RTE.map(A.sort(ordByTitle<DirRef>())))
 
 const createDirectoryIndex = (dir: Directory): AppEff<void> =>
-  writeFile(mkDirectoryIndexMD(dir.path, toc('Table of contents', [...dir.dirs, ...dir.files])))
+  writeFile(mkDirectoryIndexMD(dir.path, toc('Directory table of contents', [...dir.dirs, ...dir.files])))
 
 /**
  * Main
@@ -346,26 +339,23 @@ const createDirectoryIndex = (dir: Directory): AppEff<void> =>
  * @since 0.0.1
  */
 export const main: AppEff<void> = pipe(
-  removeDocsTsConfig,
-  RTE.chain(() =>
-    sequenceS(RTE.readerTaskEither)({
-      mkdocsConfig: readConfig,
-      others: pipe(
-        readOthers,
-        RTE.chain(splitByDirsAndFiles),
-        RTE.chain(({dirs, files}) =>
-          sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: pipe(files, A.filter(isMdFile), mdFilesRefs)})
-        )
-      ),
-      modulesDirectory: pipe(
-        readDirectory('docs/modules'),
-        RTE.map(Tree.map((dir) => ({...dir, files: dir.files.filter(isMdFile)}))),
-        RTE.chainFirst((modulesDirectory) =>
-          Tree.tree.traverse(RTE.readerTaskEither)(modulesDirectory, createDirectoryIndex)
-        )
+  sequenceS(RTE.readerTaskEither)({
+    mkdocsConfig: readConfig,
+    others: pipe(
+      readOthers,
+      RTE.chain(splitByDirsAndFiles),
+      RTE.chain(({dirs, files}) =>
+        sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: pipe(files, A.filter(isMdFile), mdFilesRefs)})
       )
-    })
-  ),
+    ),
+    modulesDirectory: pipe(
+      readDirectory('docs/modules'),
+      RTE.map(Tree.map((dir) => ({...dir, files: dir.files.filter(isMdFile)}))),
+      RTE.chainFirst((modulesDirectory) =>
+        Tree.tree.traverse(RTE.readerTaskEither)(modulesDirectory, createDirectoryIndex)
+      )
+    )
+  }),
   RTE.chain(({mkdocsConfig, others, modulesDirectory}) => {
     const allModules = pipe(
       modulesDirectory,
@@ -381,7 +371,7 @@ export const main: AppEff<void> = pipe(
     const mkDocsConfigNew = file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, nav), true)
 
     const newModulesIndex = modulesIndex({
-      toc: toc('Table of contents', rest),
+      toc: toc('Directory table of contents', rest),
       allModules: toc('All modules', allModules)
     })
 
