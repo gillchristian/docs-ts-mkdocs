@@ -71,7 +71,12 @@ const toc = (title: string, modules: string[]): string =>
   [
     `<h2 class="text-delta">${title}</h2>`,
     '',
-    ...modules.map((m) => `- [${dropFirstDir(relativeToDocs(m)).replace(/\.md$/, '')}](/${m.replace(/\.md$/, '')})`)
+    ...modules.map((m) => {
+      const label = dropFirstDir(relativeToDocs(m)).replace(/\.md$/, '')
+      const path = relativeToDocs(m).replace(/\.md$/, '')
+
+      return `- [${label}](/${path})`
+    })
   ]
     .join('\n')
     .trim()
@@ -125,9 +130,7 @@ const navSection = (nav: NavSection) =>
 const handleConfig = (contents: string, navSections: NavSection[]): string => {
   const {before, after} = parseMkDocsConfig(contents)
 
-  return [before, 'nav:', ...navSections.map(navSection), '', after]
-    .join('\n')
-    .trim()
+  return [before, 'nav:', ...navSections.map(navSection), '', after].join('\n').trim()
 }
 
 const mkNav = (dirs: DirRef[], files: FileRef[], modules: string[]): NavSection[] => {
