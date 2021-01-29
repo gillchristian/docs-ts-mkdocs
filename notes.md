@@ -1,1 +1,0 @@
-- [ ] `docs-ts-extra` needs prettier as a peer dependency

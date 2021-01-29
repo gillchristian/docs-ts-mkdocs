@@ -7,6 +7,7 @@ import * as matter from 'gray-matter'
 import * as A from 'fp-ts/Array'
 import * as RTE from 'fp-ts/ReaderTaskEither'
 import * as TE from 'fp-ts/TaskEither'
+import * as Tree from 'fp-ts/Tree'
 import * as Tuple from 'fp-ts/Tuple'
 import * as Ord from 'fp-ts/Ord'
 import {sequenceS} from 'fp-ts/Apply'
@@ -70,7 +71,7 @@ const toc = (title: string, modules: string[]): string =>
   [
     `<h2 class="text-delta">${title}</h2>`,
     '',
-    ...modules.map((m) => `- [${dropFirstDir(m).replace(/\.md$/, '')}](/${m.replace(/\.md$/, '')})`)
+    ...modules.map((m) => `- [${dropFirstDir(relativeToDocs(m)).replace(/\.md$/, '')}](/${m.replace(/\.md$/, '')})`)
   ]
     .join('\n')
     .trim()
@@ -151,7 +152,10 @@ const mkNav = (dirs: DirRef[], files: FileRef[], modules: string[]): NavSection[
     {
       type: 'dir',
       title: 'Modules',
-      contents: modules.map((m) => ({title: dropFirstDir(m).replace(/\.md$/, ''), path: m}))
+      contents: [
+        {title: 'Modules', path: 'docs/modules/index.md'},
+        ...modules.map((m) => ({title: dropFirstDir(m).replace(/\.md$/, ''), path: m}))
+      ]
     },
     ...navDirs,
     ...navFiles
@@ -174,6 +178,27 @@ const readFile = (path: string, overwrite = false): AppEff<File> => ({C}) =>
   pipe(
     C.readFile(path),
     TE.map((content) => file(path, content, overwrite))
+  )
+
+const dirContents = (dir: string): AppEff<string[]> => ({C}) => C.getFilenames(path.join(...dir.split(path.sep), '*'))
+
+interface Directory {
+  path: string
+  files: string[]
+  dirs: string[]
+}
+
+type DirectoryTree = Tree.Tree<Directory>
+
+const buildTree = Tree.unfoldTreeM(RTE.readerTaskEither)
+
+const readDirectory = (initialDir: string): AppEff<DirectoryTree> =>
+  buildTree(initialDir, (currentDir) =>
+    pipe(
+      dirContents(currentDir),
+      RTE.chain(splitByDirsAndFiles),
+      RTE.map((dsfs) => [{path: currentDir, ...dsfs}, dsfs.dirs])
+    )
   )
 
 // const readFiles = (paths: string[]): AppEff<File[]> => A.array.traverse(RTE.readerTaskEither)(paths, readFile)
@@ -203,7 +228,7 @@ const writeFiles = (files: File[]): AppEff<void> =>
     RTE.map(() => undefined)
   )
 
-const dirsAndFiles = (paths: string[]): AppEff<{dirs: string[]; files: string[]}> => ({C}) =>
+const splitByDirsAndFiles = (paths: string[]): AppEff<{dirs: string[]; files: string[]}> => ({C}) =>
   pipe(
     A.array.traverse(TE.taskEither)(paths, C.isDirectory),
     TE.map(A.zip(paths)),
@@ -232,11 +257,6 @@ const removeDocsTsConfig: AppEff<void> = ({C}) => C.rmFile(docsTsConfigPath)
 const readAllMdFiles = (dir: string): AppEff<string[]> => ({C}: Context) =>
   C.getFilenames(path.join('docs', ...relativeToDocs(dir).split(path.sep), '**', '*.md'))
 
-const readModules: AppEff<string[]> = pipe(
-  readAllMdFiles('docs/modules'),
-  RTE.map((files) => files.map(relativeToDocs))
-)
-
 const readOthers: AppEff<string[]> = ({C}: Context) =>
   pipe(C.getFilenames('./docs/*'), TE.map(A.filter((m) => !m.endsWith('index.md') && !m.endsWith('modules'))))
 
@@ -244,20 +264,21 @@ const isIndexMd = (path: string) => path.endsWith('index.md')
 
 const relativeToDocs = (file: string) => path.relative(path.resolve('docs'), path.resolve(file))
 
-const modulesIndex = ({toc, allModules}: {toc: string; allModules: string}): File =>
+const mkDirectoryIndexMD = (dir: string, contents: string): File =>
   file(
-    path.join('docs', 'modules', 'index.md'),
+    path.join(dir, 'index.md'),
     `---
 title: Modules
 has_children: true
 ---
 
-${toc}
-
-${allModules}
+${contents}
 `,
     true
   )
+
+const modulesIndex = ({toc, allModules}: {toc: string; allModules: string}) =>
+  mkDirectoryIndexMD(path.join('docs', 'modules'), `${toc}\n\n${allModules}`)
 
 interface FileRef {
   title: string
@@ -289,6 +310,9 @@ const dirRef = (dir: string): AppEff<DirRef> =>
 const dirsRefs = (dirs: string[]): AppEff<DirRef[]> =>
   pipe(A.array.traverse(RTE.readerTaskEither)(dirs, dirRef), RTE.map(A.sort(ordByTitle<DirRef>())))
 
+const createDirectoryIndex = (dir: Directory): AppEff<void> =>
+  writeFile(mkDirectoryIndexMD(dir.path, toc('Table of contents', [...dir.dirs, ...dir.files])))
+
 /**
  * Main
  *
@@ -298,21 +322,39 @@ export const main: AppEff<void> = pipe(
   removeDocsTsConfig,
   RTE.chain(() =>
     sequenceS(RTE.readerTaskEither)({
-      modules: readModules,
       mkdocsConfig: readConfig,
       others: pipe(
         readOthers,
-        RTE.chain(dirsAndFiles),
+        RTE.chain(splitByDirsAndFiles),
         RTE.chain(({dirs, files}) => sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: mdFilesRefs(files)}))
+      ),
+      modulesDirectory: pipe(
+        readDirectory('docs/modules'),
+        RTE.chainFirst((modulesDirectory) =>
+          Tree.tree.traverse(RTE.readerTaskEither)(modulesDirectory, createDirectoryIndex)
+        )
       )
     })
   ),
-  RTE.chain(({modules, mkdocsConfig, others}) => {
+  RTE.chain(({mkdocsConfig, others, modulesDirectory}) => {
+    const allModules = pipe(
+      modulesDirectory,
+      Tree.foldMap(A.getMonoid<string>())((dir) => dir.files)
+    )
+
+    const root = Tree.extract(modulesDirectory)
+    const modules = [...root.dirs, ...root.files]
+
     const rest = pipe(modules, A.filter(not(isIndexMd)))
     const nav = mkNav(others.dirs, others.files, rest)
-    const mkDocsConfigNew = file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, nav), true)
-    const newIndex = modulesIndex({toc: toc('Table of contents', rest), allModules: toc('All modules', rest)})
 
-    return writeFiles([mkDocsConfigNew, newIndex])
+    const mkDocsConfigNew = file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, nav), true)
+
+    const newModulesIndex = modulesIndex({
+      toc: toc('Table of contents', rest),
+      allModules: toc('All modules', allModules)
+    })
+
+    return writeFiles([mkDocsConfigNew, newModulesIndex])
   })
 )
