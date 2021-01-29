@@ -156,8 +156,8 @@ const mkNav = (dirs: DirRef[], files: FileRef[], modules: string[]): NavSection[
       type: 'dir',
       title: 'Modules',
       contents: [
-        {title: 'Modules', path: 'docs/modules/index.md'},
-        ...modules.map((m) => ({title: dropFirstDir(m).replace(/\.md$/, ''), path: m}))
+        {title: 'Modules', path: 'modules/index.md'},
+        ...modules.map((m) => ({title: dropFirstDir(relativeToDocs(m)).replace(/\.md$/, ''), path: relativeToDocs(m)}))
       ]
     },
     ...navDirs,
