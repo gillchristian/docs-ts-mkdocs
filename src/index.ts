@@ -12,6 +12,8 @@ import {pipe} from 'fp-ts/lib/function'
 import {log} from 'fp-ts/lib/Console'
 import {main as docsTsMain} from 'docs-ts-extra'
 
+import * as core from './core'
+
 const readFile = (path: string) =>
   IOEither.tryCatch(
     () => fs.readFileSync(path, {encoding: 'utf8'}),
@@ -30,7 +32,11 @@ const rmFile = (path: string) =>
     (err) => (err instanceof Error ? err.message : `Could not remove ${path}`)
   )
 
-import * as core from './core'
+const lStatSync = (path: string) =>
+  IOEither.tryCatch(
+    () => fs.lstatSync(path),
+    (err) => (err instanceof Error ? err.message : `Could not check ${path} stat`)
+  )
 
 const capabilities: core.Capabilities = {
   getFilenames: (pattern: string) => TE.rightIO(() => glob.sync(pattern)),
@@ -38,6 +44,18 @@ const capabilities: core.Capabilities = {
   writeFile: (path: string, content: string) => TE.fromIOEither(writeFile(path, content)),
   existsFile: (path: string) => TE.rightIO(() => fs.existsSync(path)),
   rmFile: (path: string) => TE.fromIOEither(rmFile(path)),
+  isDirectory: (path: string) =>
+    pipe(
+      lStatSync(path),
+      TE.fromIOEither,
+      TE.map((stat) => stat.isDirectory())
+    ),
+  isFile: (path: string) =>
+    pipe(
+      lStatSync(path),
+      TE.fromIOEither,
+      TE.map((stat) => stat.isFile())
+    ),
   info: (message: string) => TE.rightIO(log(chalk.bold.magenta(message))),
   log: (message: string) => TE.rightIO(log(chalk.cyan(message))),
   debug: (message: string) => TE.rightIO(log(chalk.gray(message)))

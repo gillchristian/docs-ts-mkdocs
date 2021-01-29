@@ -16,6 +16,8 @@ export interface MonadFileSystem {
     readonly writeFile: (path: string, content: string) => Eff<void>;
     readonly rmFile: (path: string) => Eff<void>;
     readonly existsFile: (path: string) => Eff<boolean>;
+    readonly isFile: (path: string) => Eff<boolean>;
+    readonly isDirectory: (path: string) => Eff<boolean>;
 }
 /**
  * @since 0.0.1

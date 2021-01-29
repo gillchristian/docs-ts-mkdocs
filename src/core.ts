@@ -2,9 +2,13 @@
  * @since 0.0.1
  */
 import * as path from 'path'
+import * as humanize from 'humanize-string'
+import * as matter from 'gray-matter'
 import * as A from 'fp-ts/Array'
 import * as RTE from 'fp-ts/ReaderTaskEither'
 import * as TE from 'fp-ts/TaskEither'
+import * as Tuple from 'fp-ts/Tuple'
+import * as Ord from 'fp-ts/Ord'
 import {sequenceS} from 'fp-ts/Apply'
 import {pipe, not} from 'fp-ts/lib/function'
 
@@ -24,6 +28,8 @@ export interface MonadFileSystem {
   readonly writeFile: (path: string, content: string) => Eff<void>
   readonly rmFile: (path: string) => Eff<void>
   readonly existsFile: (path: string) => Eff<boolean>
+  readonly isFile: (path: string) => Eff<boolean>
+  readonly isDirectory: (path: string) => Eff<boolean>
 }
 
 /**
@@ -60,26 +66,23 @@ const dropFirstDir = (p: string): string => {
   return A.isEmpty(rest) ? dir : rest.join(path.sep)
 }
 
-const modulesToC = (modules: string[]): string => {
-  return [
-    '<h2 class="text-delta">Table of contents</h2>',
+const toc = (title: string, modules: string[]): string =>
+  [
+    `<h2 class="text-delta">${title}</h2>`,
     '',
-    ...modules.map((m) => `- [${dropFirstDir(m)}](/${m.replace(/\.md$/, '')})`)
+    ...modules.map((m) => `- [${dropFirstDir(m).replace(/\.md$/, '')}](/${m.replace(/\.md$/, '')})`)
   ]
     .join('\n')
     .trim()
+
+interface ParseState {
+  before: string[]
+  after: string[]
+  state: 'before' | 'nav' | 'after'
 }
 
-const handleConfig = (contents: string, modules: string[]): string => {
-  const lines = contents.split('\n')
-
-  interface ParseState {
-    before: string[]
-    after: string[]
-    state: 'before' | 'nav' | 'after'
-  }
-
-  const {before, after} = lines.reduce<ParseState>(
+const parseMkDocsConfig = (contents: string): {before: string; after: string} => {
+  const {before, after} = contents.split('\n').reduce<ParseState>(
     (state, line) => {
       switch (state.state) {
         case 'before': {
@@ -106,20 +109,53 @@ const handleConfig = (contents: string, modules: string[]): string => {
     {before: [], after: [], state: 'before'}
   )
 
-  return [
-    before,
-    [
-      'nav:',
-      '  - Overview: index.md',
-      '  - Modules:',
-      ...modules.map((m) => `    - '${dropFirstDir(m).replace(/\.md$/, '')}': ${m}`)
-    ],
-    [''],
-    after
-  ]
-    .map((ls) => ls.join('\n'))
+  return {before: before.join('\n'), after: after.join('\n')}
+}
+
+type NavSection =
+  | {type: 'file'; title: string; path: string}
+  | {type: 'dir'; title: string; contents: {title: string; path: string}[]}
+
+const navSection = (nav: NavSection) =>
+  nav.type === 'dir'
+    ? [`  - '${nav.title}':`, ...nav.contents.map((i) => `    - '${i.title}': ${i.path}`)].join('\n')
+    : `  - '${nav.title}': ${nav.path}`
+
+const handleConfig = (contents: string, navSections: NavSection[]): string => {
+  const {before, after} = parseMkDocsConfig(contents)
+
+  return [before, 'nav:', '  - Overview: index.md', '  - Modules:', ...navSections.map(navSection), '', after]
     .join('\n')
     .trim()
+}
+
+const mkNav = (dirs: DirRef[], files: FileRef[], modules: string[]): NavSection[] => {
+  const navDirs = dirs.map(
+    (dir): NavSection => ({
+      type: 'dir',
+      title: dir.title,
+      contents: dir.contents.map((file) => ({title: file.title, path: relativeToDocs(file.path)}))
+    })
+  )
+
+  const navFiles = files.map(
+    (file): NavSection => ({
+      type: 'file',
+      title: file.title,
+      path: relativeToDocs(file.path)
+    })
+  )
+
+  return [
+    {type: 'file', title: 'Overview', path: 'index.md'},
+    {
+      type: 'dir',
+      title: 'Modules',
+      contents: modules.map((m) => ({title: dropFirstDir(m).replace(/\.md$/, ''), path: m}))
+    },
+    ...navDirs,
+    ...navFiles
+  ]
 }
 
 interface File {
@@ -167,6 +203,25 @@ const writeFiles = (files: File[]): AppEff<void> =>
     RTE.map(() => undefined)
   )
 
+const dirsAndFiles = (paths: string[]): AppEff<{dirs: string[]; files: string[]}> => ({C}) =>
+  pipe(
+    A.array.traverse(TE.taskEither)(paths, C.isDirectory),
+    TE.map(A.zip(paths)),
+    TE.map((pairs) => ({
+      dirs: pairs.filter(Tuple.fst).map(Tuple.snd),
+      files: pairs.filter(not(Tuple.fst)).map(Tuple.snd)
+    }))
+  )
+
+const mdFileTitle = (file: string): AppEff<string> =>
+  pipe(
+    readFile(file, false),
+    RTE.map(matter),
+    RTE.map((md) => md.data.title || path.basename(file))
+  )
+
+const mdFilesTitles = (files: string[]): AppEff<string[]> => A.array.traverse(RTE.readerTaskEither)(files, mdFileTitle)
+
 const mkDocsPath = path.resolve('mkdocs.yml')
 const docsTsConfigPath = path.resolve('docs', '_config.yml')
 
@@ -174,15 +229,22 @@ const readConfig: AppEff<File> = readFile(mkDocsPath, true)
 
 const removeDocsTsConfig: AppEff<void> = ({C}) => C.rmFile(docsTsConfigPath)
 
-const readModules: AppEff<string[]> = ({C}: Context) =>
-  pipe(
-    C.getFilenames('./docs/modules/**/*.md'),
-    TE.map((files) => files.map((mdPath) => path.relative(path.resolve('docs'), path.resolve(mdPath))))
-  )
+const readAllMdFiles = (dir: string): AppEff<string[]> => ({C}: Context) =>
+  C.getFilenames(path.join('docs', ...relativeToDocs(dir).split(path.sep), '**', '*.md'))
+
+const readModules: AppEff<string[]> = pipe(
+  readAllMdFiles('docs/modules'),
+  RTE.map((files) => files.map(relativeToDocs))
+)
+
+const readOthers: AppEff<string[]> = ({C}: Context) =>
+  pipe(C.getFilenames('./docs/*'), TE.map(A.filter((m) => !m.endsWith('index.md') && !m.endsWith('modules'))))
 
 const isIndexMd = (path: string) => path.endsWith('index.md')
 
-const modulesIndex = (toc: string): File =>
+const relativeToDocs = (file: string) => path.relative(path.resolve('docs'), path.resolve(file))
+
+const modulesIndex = ({toc, allModules}: {toc: string; allModules: string}): File =>
   file(
     path.join('docs', 'modules', 'index.md'),
     `---
@@ -191,9 +253,41 @@ has_children: true
 ---
 
 ${toc}
+
+${allModules}
 `,
     true
   )
+
+interface FileRef {
+  title: string
+  path: string
+}
+
+interface DirRef {
+  title: string
+  contents: FileRef[]
+}
+
+const ordByTitle = <A extends {title: string}>() => Ord.contramap(({title}: A) => title)(Ord.ordString)
+
+const mdFilesRefs = (files: string[]): AppEff<FileRef[]> =>
+  pipe(
+    mdFilesTitles(files),
+    RTE.map((titles) => A.zipWith(files, titles, (path, title) => ({title, path}))),
+    RTE.map((v) => v),
+    RTE.map(A.sort(ordByTitle<FileRef>()))
+  )
+
+const dirRef = (dir: string): AppEff<DirRef> =>
+  pipe(
+    readAllMdFiles(dir),
+    RTE.chain(mdFilesRefs),
+    RTE.map((contents) => ({title: humanize(path.basename(dir)), contents}))
+  )
+
+const dirsRefs = (dirs: string[]): AppEff<DirRef[]> =>
+  pipe(A.array.traverse(RTE.readerTaskEither)(dirs, dirRef), RTE.map(A.sort(ordByTitle<DirRef>())))
 
 /**
  * Main
@@ -202,13 +296,23 @@ ${toc}
  */
 export const main: AppEff<void> = pipe(
   removeDocsTsConfig,
-  RTE.chain(() => sequenceS(RTE.readerTaskEither)({modules: readModules, mkdocsConfig: readConfig})),
-  RTE.chain(({modules, mkdocsConfig}) => {
+  RTE.chain(() =>
+    sequenceS(RTE.readerTaskEither)({
+      modules: readModules,
+      mkdocsConfig: readConfig,
+      others: pipe(
+        readOthers,
+        RTE.chain(dirsAndFiles),
+        RTE.chain(({dirs, files}) => sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: mdFilesRefs(files)}))
+      )
+    })
+  ),
+  RTE.chain(({modules, mkdocsConfig, others}) => {
     const rest = pipe(modules, A.filter(not(isIndexMd)))
+    const nav = mkNav(others.dirs, others.files, rest)
+    const mkDocsConfigNew = file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, nav), true)
+    const newIndex = modulesIndex({toc: toc('Table of contents', rest), allModules: toc('All modules', rest)})
 
-    return writeFiles([
-      file(mkdocsConfig.path, handleConfig(mkdocsConfig.content, rest), true),
-      modulesIndex(modulesToC(modules))
-    ])
+    return writeFiles([mkDocsConfigNew, newIndex])
   })
 )
