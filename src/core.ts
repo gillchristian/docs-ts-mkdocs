@@ -287,6 +287,8 @@ const readOthers: AppEff<string[]> = ({C}: Context) =>
 
 const isIndexMd = (path: string) => path.endsWith('index.md')
 
+const isMdFile = (file: string) => path.extname(file) === '.md'
+
 const relativeToDocs = (file: string) => path.relative(path.resolve('docs'), path.resolve(file))
 
 const mkDirectoryIndexMD = (dir: string, contents: string): File =>
@@ -351,10 +353,13 @@ export const main: AppEff<void> = pipe(
       others: pipe(
         readOthers,
         RTE.chain(splitByDirsAndFiles),
-        RTE.chain(({dirs, files}) => sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: mdFilesRefs(files)}))
+        RTE.chain(({dirs, files}) =>
+          sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: pipe(files, A.filter(isMdFile), mdFilesRefs)})
+        )
       ),
       modulesDirectory: pipe(
         readDirectory('docs/modules'),
+        RTE.map(Tree.map((dir) => ({...dir, files: dir.files.filter(isMdFile)}))),
         RTE.chainFirst((modulesDirectory) =>
           Tree.tree.traverse(RTE.readerTaskEither)(modulesDirectory, createDirectoryIndex)
         )
