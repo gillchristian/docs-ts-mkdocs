@@ -67,16 +67,38 @@ const dropFirstDir = (p: string): string => {
   return A.isEmpty(rest) ? dir : rest.join(path.sep)
 }
 
+const directoryIndexFirst = Ord.fromCompare((a: string, b: string) => {
+  const dirnameA = path.dirname(a)
+  const dirnameB = path.dirname(b)
+
+  if (dirnameA === dirnameB) {
+    const basenameA = path.basename(a)
+    const basenameB = path.basename(b)
+
+    if (basenameA === 'index.md') return -1
+    if (basenameB === 'index.md') return 1
+
+    return Ord.ordString.compare(basenameA, basenameB)
+  }
+
+  return Ord.ordString.compare(dirnameA, dirnameB)
+})
+
 const toc = (title: string, modules: string[]): string =>
   [
     `<h2 class="text-delta">${title}</h2>`,
     '',
-    ...modules.map((m) => {
-      const label = dropFirstDir(relativeToDocs(m)).replace(/\.md$/, '')
-      const path = relativeToDocs(m).replace(/\.md$/, '')
+    ...pipe(
+      modules,
+      A.map(relativeToDocs),
+      A.sort(directoryIndexFirst),
+      A.map((m) => {
+        const label = dropFirstDir(m).replace(/\.md$/, '')
+        const path = m.replace(/\.md$/, '').replace(/\/index$/, '')
 
-      return `- [${label}](/${path})`
-    })
+        return `- [${label}](/${path})`
+      })
+    )
   ]
     .join('\n')
     .trim()
