@@ -125,7 +125,7 @@ const navSection = (nav: NavSection) =>
 const handleConfig = (contents: string, navSections: NavSection[]): string => {
   const {before, after} = parseMkDocsConfig(contents)
 
-  return [before, 'nav:', '  - Overview: index.md', '  - Modules:', ...navSections.map(navSection), '', after]
+  return [before, 'nav:', ...navSections.map(navSection), '', after]
     .join('\n')
     .trim()
 }
