@@ -3,6 +3,8 @@ title: docs-ts-mkdocs
 nav_order: 1
 ---
 
+# dcos-ts-mkdocs
+
 A wrapper to [docs-ts-extra](https://github.com/gillchristian/docs-ts-extra)
 that adds support for [MkDocs](https://www.mkdocs.org/).
 
