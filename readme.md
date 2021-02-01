@@ -5,7 +5,7 @@ that adds support for [MkDocs](https://www.mkdocs.org/).
 
 ## Rationale & How It Works
 
-[docs-ts-extra](https://github.com/gcanti/docs-ts-extra) output is meant to be
+[docs-ts-extra](https://github.com/gillchristian/docs-ts-extra) output is meant to be
 deployed with [GitHub Pages](https://pages.github.com/) (using
 [Jekyll](https://jekyllrb.com/) under the hood).
 
