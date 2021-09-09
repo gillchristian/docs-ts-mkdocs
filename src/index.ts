@@ -63,7 +63,10 @@ const capabilities: core.Capabilities = {
   debug: (message: string) => TE.rightIO(log(chalk.gray(message)))
 }
 
-const exit = (code: 0 | 1): IO.IO<void> => () => process.exit(code)
+const exit =
+  (code: 0 | 1): IO.IO<void> =>
+  () =>
+    process.exit(code)
 
 const onLeft = (e: string): T.Task<void> =>
   T.fromIO(

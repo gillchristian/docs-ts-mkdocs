@@ -199,13 +199,18 @@ const file = (path: string, content: string, overwrite: boolean): File => ({
   overwrite
 })
 
-const readFile = (path: string, overwrite = false): AppEff<File> => ({C}) =>
-  pipe(
-    C.readFile(path),
-    TE.map((content) => file(path, content, overwrite))
-  )
+const readFile =
+  (path: string, overwrite = false): AppEff<File> =>
+  ({C}) =>
+    pipe(
+      C.readFile(path),
+      TE.map((content) => file(path, content, overwrite))
+    )
 
-const dirContents = (dir: string): AppEff<string[]> => ({C}) => C.getFilenames(path.join(...dir.split(path.sep), '*'))
+const dirContents =
+  (dir: string): AppEff<string[]> =>
+  ({C}) =>
+    C.getFilenames(path.join(...dir.split(path.sep), '*'))
 
 interface Directory {
   path: string
@@ -226,24 +231,26 @@ const readDirectory = (initialDir: string): AppEff<DirectoryTree> =>
     )
   )
 
-const writeFile = (file: File): AppEff<void> => ({C}) => {
-  const overwrite = pipe(
-    C.debug(`Overwriting file ${file.path}`),
-    TE.chain(() => C.writeFile(file.path, file.content))
-  )
+const writeFile =
+  (file: File): AppEff<void> =>
+  ({C}) => {
+    const overwrite = pipe(
+      C.debug(`Overwriting file ${file.path}`),
+      TE.chain(() => C.writeFile(file.path, file.content))
+    )
 
-  const skip = C.debug(`File ${file.path} already exists, skipping creation`)
+    const skip = C.debug(`File ${file.path} already exists, skipping creation`)
 
-  const write = pipe(
-    C.debug('Writing file ' + file.path),
-    TE.chain(() => C.writeFile(file.path, file.content))
-  )
+    const write = pipe(
+      C.debug('Writing file ' + file.path),
+      TE.chain(() => C.writeFile(file.path, file.content))
+    )
 
-  return pipe(
-    C.existsFile(file.path),
-    TE.chain((exists) => (exists ? (file.overwrite ? overwrite : skip) : write))
-  )
-}
+    return pipe(
+      C.existsFile(file.path),
+      TE.chain((exists) => (exists ? (file.overwrite ? overwrite : skip) : write))
+    )
+  }
 
 const writeFiles = (files: File[]): AppEff<void> =>
   pipe(
@@ -251,15 +258,17 @@ const writeFiles = (files: File[]): AppEff<void> =>
     RTE.map(() => undefined)
   )
 
-const splitByDirsAndFiles = (paths: string[]): AppEff<{dirs: string[]; files: string[]}> => ({C}) =>
-  pipe(
-    A.array.traverse(TE.taskEither)(paths, C.isDirectory),
-    TE.map(A.zip(paths)),
-    TE.map((pairs) => ({
-      dirs: pairs.filter(Tuple.fst).map(Tuple.snd),
-      files: pairs.filter(not(Tuple.fst)).map(Tuple.snd)
-    }))
-  )
+const splitByDirsAndFiles =
+  (paths: string[]): AppEff<{dirs: string[]; files: string[]}> =>
+  ({C}) =>
+    pipe(
+      A.array.traverse(TE.taskEither)(paths, C.isDirectory),
+      TE.map(A.zip(paths)),
+      TE.map((pairs) => ({
+        dirs: pairs.filter(Tuple.fst).map(Tuple.snd),
+        files: pairs.filter(not(Tuple.fst)).map(Tuple.snd)
+      }))
+    )
 
 const mdFileTitle = (file: string): AppEff<string> =>
   pipe(
@@ -272,8 +281,10 @@ const mdFilesTitles = (files: string[]): AppEff<string[]> => A.array.traverse(RT
 
 const readConfig: AppEff<File> = readFile('mkdocs.yml', true)
 
-const readAllMdFiles = (dir: string): AppEff<string[]> => ({C}: Context) =>
-  C.getFilenames(path.join('docs', ...relativeToDocs(dir).split(path.sep), '**', '*.md'))
+const readAllMdFiles =
+  (dir: string): AppEff<string[]> =>
+  ({C}: Context) =>
+    C.getFilenames(path.join('docs', ...relativeToDocs(dir).split(path.sep), '**', '*.md'))
 
 const readOthers: AppEff<string[]> = ({C}: Context) =>
   pipe(C.getFilenames('./docs/*'), TE.map(A.filter((m) => !m.endsWith('index.md') && !m.endsWith('modules'))))
