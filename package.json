@@ -17,7 +17,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf rm -rf lib/*",
-    "docs": "docs-ts-extra",
+    "docs": "docs-ts",
     "fmt": "prettier --write '**/*.{ts,md,json}'",
     "prepublish": "npm run build",
     "run:dev": "ts-node src/bin.ts",
@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "chalk": "^4.1.2",
-    "docs-ts-extra": "^0.7.1",
+    "docs-ts": "^0.6.10",
     "fp-ts": "^2.11.1",
     "glob": "^7.1.7",
     "gray-matter": "^4.0.3",

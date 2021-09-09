@@ -5,7 +5,7 @@ import * as fs from 'fs'
 
 import * as glob from 'glob'
 import * as chalk from 'chalk'
-import {main as docsTsMain} from 'docs-ts-extra'
+import {main as docsTsMain} from 'docs-ts'
 
 import * as IO from 'fp-ts/IO'
 import * as IOEither from 'fp-ts/IOEither'
