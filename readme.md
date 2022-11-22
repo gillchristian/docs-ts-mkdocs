@@ -1,7 +1,7 @@
 # docs-ts-mkdocs
 
-A wrapper to [docs-ts](https://github.com/gcanti/docs-ts) that adds support for
-[MkDocs](https://www.mkdocs.org/).
+An [MkDocs](https://www.mkdocs.org/) generator from
+[docs-ts](https://github.com/gcanti/docs-ts) documentation.
 
 ## Rationale & How It Works
 
@@ -9,7 +9,7 @@ A wrapper to [docs-ts](https://github.com/gcanti/docs-ts) that adds support for
 [GitHub Pages](https://pages.github.com/) (using [Jekyll](https://jekyllrb.com/)
 under the hood).
 
-`docs-ts-mkdocs` runs `docs-ts` to generate the docs and then it adds a `nav:`
+`docs-ts-mkdocs` must be run after `docs-ts`: it adds a `nav:`
 section to `mkdocs.yml` based on the generated `docs/` directory.
 
 All the directories and markdown files in `docs/` are added to the main
@@ -19,10 +19,11 @@ directory with a table of contents of the directory files.
 ## Install and use
 
 ```
-yarn add docs-ts-mkdocs
+yarn add docs-ts docs-ts-mkdocs
 ```
 
 ```
+yarn docs-ts
 yarn docs-ts-mkdocs
 ```
 

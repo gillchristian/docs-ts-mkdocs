@@ -23,10 +23,14 @@
     "run:dev": "ts-node src/bin.ts",
     "watch": "tsc --watch --noEmit"
   },
+  "peerDependencies": {
+    "docs-ts": "^0.6.10"
+  },
   "devDependencies": {
     "@types/glob": "^7.1.4",
     "@types/humanize-string": "^2.0.2",
     "@types/node": "^16.9.0",
+    "docs-ts": "^0.6.10",
     "prettier": "^2.3.2",
     "rimraf": "^3.0.2",
     "ts-node": "^10.2.1",
@@ -34,7 +38,6 @@
   },
   "dependencies": {
     "chalk": "^4.1.2",
-    "docs-ts": "^0.6.10",
     "fp-ts": "^2.11.1",
     "glob": "^7.1.7",
     "gray-matter": "^4.0.3",

@@ -11,7 +11,8 @@ import * as Tree from 'fp-ts/Tree'
 import * as Tuple from 'fp-ts/Tuple'
 import * as Ord from 'fp-ts/Ord'
 import {sequenceS} from 'fp-ts/Apply'
-import {pipe, not} from 'fp-ts/lib/function'
+import {pipe } from 'fp-ts/function'
+import { not } from 'fp-ts/Predicate'
 
 /**
  * capabilities
@@ -220,7 +221,7 @@ interface Directory {
 
 type DirectoryTree = Tree.Tree<Directory>
 
-const buildTree = Tree.unfoldTreeM(RTE.readerTaskEither)
+const buildTree = Tree.unfoldTreeM(RTE.Monad)
 
 const readDirectory = (initialDir: string): AppEff<DirectoryTree> =>
   buildTree(initialDir, (currentDir) =>
@@ -254,7 +255,8 @@ const writeFile =
 
 const writeFiles = (files: File[]): AppEff<void> =>
   pipe(
-    A.array.traverse(RTE.readerTaskEither)(files, writeFile),
+    files,
+    A.traverse(RTE.ApplicativePar)(writeFile),
     RTE.map(() => undefined)
   )
 
@@ -339,7 +341,7 @@ const dirRef = (dir: string): AppEff<DirRef> =>
   )
 
 const dirsRefs = (dirs: string[]): AppEff<DirRef[]> =>
-  pipe(A.array.traverse(RTE.readerTaskEither)(dirs, dirRef), RTE.map(A.sort(ordByTitle<DirRef>())))
+  pipe(dirs, A.traverse(RTE.ApplicativePar)(dirRef), RTE.map(A.sort(ordByTitle<DirRef>())))
 
 const createDirectoryIndex = (dir: Directory): AppEff<void> =>
   writeFile(mkDirectoryIndexMD(dir.path, toc('Directory table of contents', [...dir.dirs, ...dir.files])))
@@ -350,20 +352,20 @@ const createDirectoryIndex = (dir: Directory): AppEff<void> =>
  * @since 0.0.1
  */
 export const main: AppEff<void> = pipe(
-  sequenceS(RTE.readerTaskEither)({
+  sequenceS(RTE.ApplicativePar)({
     mkdocsConfig: readConfig,
     others: pipe(
       readOthers,
       RTE.chain(splitByDirsAndFiles),
       RTE.chain(({dirs, files}) =>
-        sequenceS(RTE.readerTaskEither)({dirs: dirsRefs(dirs), files: pipe(files, A.filter(isMdFile), mdFilesRefs)})
+        sequenceS(RTE.ApplicativePar)({dirs: dirsRefs(dirs), files: pipe(files, A.filter(isMdFile), mdFilesRefs)})
       )
     ),
     modulesDirectory: pipe(
       readDirectory('docs/modules'),
       RTE.map(Tree.map((dir) => ({...dir, files: dir.files.filter(isMdFile)}))),
       RTE.chainFirst((modulesDirectory) =>
-        Tree.tree.traverse(RTE.readerTaskEither)(modulesDirectory, createDirectoryIndex)
+        pipe(modulesDirectory, Tree.traverse(RTE.ApplicativePar)(createDirectoryIndex))
       )
     )
   }),
