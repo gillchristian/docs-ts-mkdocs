@@ -5,14 +5,13 @@ import * as fs from 'fs'
 
 import * as glob from 'glob'
 import * as chalk from 'chalk'
-import {main as docsTsMain} from 'docs-ts'
 
 import * as IO from 'fp-ts/IO'
 import * as IOEither from 'fp-ts/IOEither'
 import * as T from 'fp-ts/Task'
 import * as TE from 'fp-ts/TaskEither'
-import {pipe} from 'fp-ts/lib/function'
-import {log} from 'fp-ts/lib/Console'
+import {pipe} from 'fp-ts/function'
+import {log} from 'fp-ts/Console'
 
 import * as core from './core'
 
@@ -82,12 +81,7 @@ const onRight: T.Task<void> = T.fromIO(log(chalk.bold.green('MkDocs config gener
  * @since 0.0.1
  */
 export const main = pipe(
-  docsTsMain,
-  T.chain(() =>
-    pipe(
-      core.main,
-      (runReader) => runReader({C: capabilities}),
-      TE.fold(onLeft, () => onRight)
-    )
-  )
+    core.main,
+    (runReader) => runReader({C: capabilities}),
+    TE.fold(onLeft, () => onRight)
 )
