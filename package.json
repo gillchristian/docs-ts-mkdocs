@@ -24,7 +24,7 @@
     "watch": "tsc --watch --noEmit"
   },
   "peerDependencies": {
-    "docs-ts": "^0.6.10"
+    "docs-ts": "^0.6.10 || ^0.7.0"
   },
   "devDependencies": {
     "@types/glob": "^7.1.4",
