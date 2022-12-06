@@ -11,8 +11,9 @@ import * as Tree from 'fp-ts/Tree'
 import * as Tuple from 'fp-ts/Tuple'
 import * as Ord from 'fp-ts/Ord'
 import {sequenceS} from 'fp-ts/Apply'
-import {pipe } from 'fp-ts/function'
-import { not } from 'fp-ts/Predicate'
+import {pipe} from 'fp-ts/function'
+import {not} from 'fp-ts/Predicate'
+import * as S from 'fp-ts/string'
 
 /**
  * capabilities
@@ -79,10 +80,10 @@ const directoryIndexFirst = Ord.fromCompare((a: string, b: string) => {
     if (basenameA === 'index.md') return -1
     if (basenameB === 'index.md') return 1
 
-    return Ord.ordString.compare(basenameA, basenameB)
+    return S.Ord.compare(basenameA, basenameB)
   }
 
-  return Ord.ordString.compare(dirnameA, dirnameB)
+  return S.Ord.compare(dirnameA, dirnameB)
 })
 
 const toc = (title: string, modules: string[]): string =>
@@ -264,7 +265,8 @@ const splitByDirsAndFiles =
   (paths: string[]): AppEff<{dirs: string[]; files: string[]}> =>
   ({C}) =>
     pipe(
-      A.array.traverse(TE.taskEither)(paths, C.isDirectory),
+      paths,
+      A.traverse(TE.ApplicativePar)(C.isDirectory),
       TE.map(A.zip(paths)),
       TE.map((pairs) => ({
         dirs: pairs.filter(Tuple.fst).map(Tuple.snd),
@@ -279,7 +281,7 @@ const mdFileTitle = (file: string): AppEff<string> =>
     RTE.map((md) => md.data.title || path.basename(file))
   )
 
-const mdFilesTitles = (files: string[]): AppEff<string[]> => A.array.traverse(RTE.readerTaskEither)(files, mdFileTitle)
+const mdFilesTitles = (files: string[]): AppEff<string[]> => pipe(files, A.traverse(RTE.ApplicativePar)(mdFileTitle))
 
 const readConfig: AppEff<File> = readFile('mkdocs.yml', true)
 
@@ -323,14 +325,14 @@ interface DirRef {
   contents: FileRef[]
 }
 
-const ordByTitle = <A extends {title: string}>() => Ord.contramap(({title}: A) => title)(Ord.ordString)
+const ordByTitle = <A extends {title: string}>() => Ord.contramap(({title}: A) => title)(S.Ord)
 
 const mdFilesRefs = (files: string[]): AppEff<FileRef[]> =>
   pipe(
     mdFilesTitles(files),
     RTE.map((titles) => A.zipWith(files, titles, (path, title) => ({title, path}))),
     RTE.map((v) => v),
-    RTE.map(A.sort(ordByTitle<FileRef>()))
+    RTE.map(A.sort(ordByTitle()))
   )
 
 const dirRef = (dir: string): AppEff<DirRef> =>
@@ -341,7 +343,7 @@ const dirRef = (dir: string): AppEff<DirRef> =>
   )
 
 const dirsRefs = (dirs: string[]): AppEff<DirRef[]> =>
-  pipe(dirs, A.traverse(RTE.ApplicativePar)(dirRef), RTE.map(A.sort(ordByTitle<DirRef>())))
+  pipe(dirs, A.traverse(RTE.ApplicativePar)(dirRef), RTE.map(A.sort(ordByTitle())))
 
 const createDirectoryIndex = (dir: Directory): AppEff<void> =>
   writeFile(mkDirectoryIndexMD(dir.path, toc('Directory table of contents', [...dir.dirs, ...dir.files])))

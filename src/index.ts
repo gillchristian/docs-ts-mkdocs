@@ -81,7 +81,7 @@ const onRight: T.Task<void> = T.fromIO(log(chalk.bold.green('MkDocs config gener
  * @since 0.0.1
  */
 export const main = pipe(
-    core.main,
-    (runReader) => runReader({C: capabilities}),
-    TE.fold(onLeft, () => onRight)
+  core.main,
+  (runReader) => runReader({C: capabilities}),
+  TE.fold(onLeft, () => onRight)
 )
