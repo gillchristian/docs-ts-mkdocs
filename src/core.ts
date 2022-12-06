@@ -2,7 +2,7 @@
  * @since 0.0.1
  */
 import * as path from 'path'
-import * as humanize from 'humanize-string'
+import humanize from 'humanize-string'
 import * as matter from 'gray-matter'
 import * as A from 'fp-ts/Array'
 import * as RTE from 'fp-ts/ReaderTaskEither'
