@@ -2,5 +2,4 @@
 node_modules
 dev
 coverage
-package-lock.json
-yarn.lock
+lib
