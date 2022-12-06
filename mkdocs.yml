@@ -1,0 +1,7 @@
+nav:
+  - 'Overview': index.md
+  - 'Modules':
+    - 'Modules': modules/index.md
+    - 'bin.ts': modules/bin.ts.md
+    - 'core.ts': modules/core.ts.md
+    - 'index.ts': modules/index.ts.md
