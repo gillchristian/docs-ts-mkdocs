@@ -57,7 +57,7 @@ const capabilities: core.Capabilities = {
       TE.fromIOEither,
       TE.map((stat) => stat.isFile())
     ),
-  info: (message: string) => TE.rightIO(log(chalk.bold.magenta(message))),
+  info: (message: string) => TE.rightIO(log(chalk.magenta(message))),
   log: (message: string) => TE.rightIO(log(chalk.cyan(message))),
   debug: (message: string) => TE.rightIO(log(chalk.gray(message)))
 }
