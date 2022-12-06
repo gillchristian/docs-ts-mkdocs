@@ -43,6 +43,11 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@scarf/scarf@^1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@scarf/scarf/-/scarf-1.1.1.tgz#d8b9f20037b3a37dbf8dcdc4b3b72f9285bfce35"
+  integrity sha512-VGbKDbk1RFIaSmdVb0cNjjWJoRWRI/Weo23AjRCC2nryO0iAS8pzsToJfPVPtVs74WHw4L1UTADNdIYRLkirZQ==
+
 "@ts-morph/common@~0.7.0":
   version "0.7.5"
   resolved "https://registry.yarnpkg.com/@ts-morph/common/-/common-0.7.5.tgz#d81603abd4b86d0099d69239cbbcdf990a5dfb25"

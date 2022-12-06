@@ -21,12 +21,12 @@ adding `index.md` files on every directory with a table of contents of the direc
 ## Install and use
 
 ```
-yarn add docs-ts docs-ts-mkdocs
+npm i --dev docs-ts docs-ts-mkdocs
 ```
 
 ```
-yarn docs-ts
-yarn docs-ts-mkdocs
+npm run docs-ts
+npm run docs-ts-mkdocs
 ```
 
 See [docs-ts](https://github.com/gcanti/docs-ts) on how to configure.
